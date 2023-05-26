@@ -1,79 +1,137 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>Canvas Drawing</title>
-        <style>
-            canvas {
-                border: 1px solid black;
-            }
-        </style>
-    </head>
-    <body>
-        <canvas id="myCanvas" width="500" height="500"></canvas>
-        <button id="clearButton">Clear Canvas</button>
-        <button id="replayButton">Replay Drawing</button>
-        <script>
-            var canvas = document.getElementById('myCanvas');
-            var ctx = canvas.getContext('2d');
-            var clearButton = document.getElementById('clearButton');
-            var replayButton = document.getElementById('replayButton');
-            var drawing = false;
-            var pathArray = [];
-            var lastEventTime;
+<head>
+    <title>Fourier Canvas</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #container {
+            position: relative;
+            height: 100%;
+        }
+        #myCanvas {
+            position: absolute;
+            top: 50px; /* adjust as needed */
+            left: 0;
+            border: 1px solid black;
+        }
+        #buttonContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50px; /* adjust as needed */
+            background-color: #f8f9fa; /* adjust as needed */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="buttonContainer">
+            <button id="clearButton">Clear Canvas</button>
+            <button id="resetButton">Reset Path</button>
+            <button id="replayButton">Replay Drawing</button>
+            <button id="circleButton">Prepopulate Circle</button>
+        </div>
+        <canvas id="myCanvas"></canvas>
+    </div>
+    <script>
+        var canvas = document.getElementById('myCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight - 50; // adjust as needed
+        var ctx = canvas.getContext('2d');
+        var clearButton = document.getElementById('clearButton');
+        var resetButton = document.getElementById('resetButton');
+        var replayButton = document.getElementById('replayButton');
+        var circleButton = document.getElementById('circleButton');
+        var drawing = false;
+        var pathArray = [];
+        var lastEventTime;
 
-            function startDrawing(e) {
-                drawing = true;
-                lastEventTime = Date.now();
-                draw(e);
-            }
+        function startDrawing(e) {
+            drawing = true;
+            lastEventTime = Date.now();
+            draw(e);
+        }
 
-            function endDrawing() {
-                drawing = false;
+        function endDrawing() {
+            drawing = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if(!drawing) return;
+            var rect = canvas.getBoundingClientRect();
+            var mouseX = e.clientX - rect.left;
+            var mouseY = e.clientY - rect.top;
+            var currentTime = Date.now();
+            var timeElapsed = currentTime - lastEventTime;
+            pathArray.push({x: mouseX, y: mouseY, time: timeElapsed});
+            ctx.lineTo(mouseX, mouseY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(mouseX, mouseY);
+            lastEventTime = currentTime;
+        }
+
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            //pathArray = [];
+        }
+
+        async function replayDrawing() {
+            console.log("Replay Drawing:", pathArray.length, " at ", lastEventTime);
+            clearCanvas();
+            for(let i = 0; i < pathArray.length; i++) {
                 ctx.beginPath();
-            }
-
-            function draw(e) {
-                if(!drawing) return;
-                var rect = canvas.getBoundingClientRect();
-                var mouseX = e.clientX - rect.left;
-                var mouseY = e.clientY - rect.top;
-                var currentTime = Date.now();
-                var timeElapsed = currentTime - lastEventTime;
-                pathArray.push({x: mouseX, y: mouseY, time: timeElapsed});
-                ctx.lineTo(mouseX, mouseY);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(mouseX, mouseY);
-                lastEventTime = currentTime;
-            }
-
-
-            function clearCanvas() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                //pathArray = [];
-            }
-
-            async function replayDrawing() {
-                console.log("Replay Drawing:", pathArray.length, " at ", lastEventTime);
-                clearCanvas();
-                for(let i = 0; i < pathArray.length; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(pathArray[i].x, pathArray[i].y);
-                    if (i < pathArray.length - 1) {
-                        ctx.lineTo(pathArray[i + 1].x, pathArray[i + 1].y);
-                        ctx.stroke();
-                    }
-                    console.log("Drawing from ", pathArray[i], " to ", pathArray[i + 1]);
-                    await new Promise(resolve => setTimeout(resolve, pathArray[i].time));
+                ctx.moveTo(pathArray[i].x, pathArray[i].y);
+                if (i < pathArray.length - 1) {
+                    ctx.lineTo(pathArray[i + 1].x, pathArray[i + 1].y);
+                    ctx.stroke();
                 }
+                console.log("Drawing from ", pathArray[i], " to ", pathArray[i + 1]);
+                await new Promise(resolve => setTimeout(resolve, pathArray[i].time));
             }
+        }
 
-            canvas.addEventListener('mousedown', startDrawing);
-            canvas.addEventListener('mouseup', endDrawing);
-            canvas.addEventListener('mousemove', draw);
-            clearButton.addEventListener('click', clearCanvas);
-            replayButton.addEventListener('click', replayDrawing);
-        </script>
-    </body>
+        function populateCircle() {
+            //clearCanvas();
+            var centerX = canvas.width / 2;
+            var centerY = canvas.height / 2;
+            var radius = Math.min(centerX, centerY) - 50;
+            var steps = 250; // steps taken to form the circle over 5 seconds
+            console.log("Pre drawing circle:", centerX, radius, steps);
+            for(var i = 0; i < steps; i++) {
+                var angle = (i / (steps - 1)) * (2 * Math.PI); // calculate the angle for this step
+                var x = centerX + radius * Math.cos(angle);
+                var y = centerY + radius * Math.sin(angle);
+                var step_array = {x: x, y: y, time: 5.0/steps};
+                console.log("Adding point to path:", step_array)
+                pathArray.push(step_array);
+            }
+        }
+
+        function resetPath() {
+            pathArray = [];
+        }
+
+        resetButton.addEventListener('click', resetPath);
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', endDrawing);
+        canvas.addEventListener('mousemove', draw);
+        clearButton.addEventListener('click', clearCanvas);
+        replayButton.addEventListener('click', replayDrawing);
+        circleButton.addEventListener('click', populateCircle);
+    </script>
+</body>
 </html>
 
