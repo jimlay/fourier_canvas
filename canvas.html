@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Canvas Drawing</title>
+        <style>
+            canvas {
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="myCanvas" width="500" height="500"></canvas>
+        <script>
+            var canvas = document.getElementById('myCanvas');
+            var ctx = canvas.getContext('2d');
+            var drawing = false;
+            var pathArray = [];
+
+            function startDrawing(e) {
+                drawing = true;
+                draw(e);
+            }
+
+            function endDrawing() {
+                drawing = false;
+                ctx.beginPath();
+            }
+
+            function draw(e) {
+                if(!drawing) return;
+                var mouseX = e.clientX - canvas.offsetLeft;
+                var mouseY = e.clientY - canvas.offsetTop;
+                pathArray.push({x: mouseX, y: mouseY});
+                ctx.lineTo(mouseX, mouseY);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(mouseX, mouseY);
+            }
+
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mouseup', endDrawing);
+            canvas.addEventListener('mousemove', draw);
+        </script>
+    </body>
+</html>
+
