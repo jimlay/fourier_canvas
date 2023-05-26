@@ -34,8 +34,9 @@
 
             function draw(e) {
                 if(!drawing) return;
-                var mouseX = e.clientX - canvas.offsetLeft;
-                var mouseY = e.clientY - canvas.offsetTop;
+                var rect = canvas.getBoundingClientRect();
+                var mouseX = e.clientX - rect.left;
+                var mouseY = e.clientY - rect.top;
                 var currentTime = Date.now();
                 var timeElapsed = currentTime - lastEventTime;
                 pathArray.push({x: mouseX, y: mouseY, time: timeElapsed});
@@ -46,19 +47,23 @@
                 lastEventTime = currentTime;
             }
 
+
             function clearCanvas() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                pathArray = [];
+                //pathArray = [];
             }
 
             async function replayDrawing() {
+                console.log("Replay Drawing:", pathArray.length, " at ", lastEventTime);
                 clearCanvas();
-                ctx.beginPath();
                 for(let i = 0; i < pathArray.length; i++) {
-                    ctx.lineTo(pathArray[i].x, pathArray[i].y);
-                    ctx.stroke();
                     ctx.beginPath();
                     ctx.moveTo(pathArray[i].x, pathArray[i].y);
+                    if (i < pathArray.length - 1) {
+                        ctx.lineTo(pathArray[i + 1].x, pathArray[i + 1].y);
+                        ctx.stroke();
+                    }
+                    console.log("Drawing from ", pathArray[i], " to ", pathArray[i + 1]);
                     await new Promise(resolve => setTimeout(resolve, pathArray[i].time));
                 }
             }
