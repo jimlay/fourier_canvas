@@ -30,6 +30,9 @@
             align-items: center;
             justify-content: center;
         }
+        #filterContainer {
+            top: 50px;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/fourier/fourier.min.js"></script>
 </head>
@@ -40,8 +43,19 @@
             <button id="resetButton">Reset Path</button>
             <button id="replayButton">Replay Drawing</button>
             <button id="circleButton">Prepopulate Circle</button>
+            <button id="fourierButton">Compute Fourier</button>
+            <button id="inverseButton">Compute Inverse</button>
+        <div id="buttonContainer2">
+           <button id="computeFTButton">Compute Fourier Transform</button>
+           <button id="computeInvFTButton">Compute Inverse Fourier Transform</button>
+       </div>
+         <div id="filterContainer">
+            Min amplitude: <input type="number" id="minAmplitude" value="0">
+            Max frequency: <input type="number" id="maxFrequency" value="99999999">
+        </div>
         </div>
         <canvas id="myCanvas"></canvas>
+        <textarea id="fourierData" rows="4" cols="50"></textarea>
     </div>
     <script>
         var canvas = document.getElementById('myCanvas');
@@ -52,8 +66,20 @@
         var resetButton = document.getElementById('resetButton');
         var replayButton = document.getElementById('replayButton');
         var circleButton = document.getElementById('circleButton');
+        var fourierButton = document.getElementById('fourierButton');
+        var inverseButton = document.getElementById('inverseButton');
+        var minAmplitudeInput = document.getElementById('minAmplitude');
+        var maxFrequencyInput = document.getElementById('maxFrequency');
+        var computeFourierButton = document.getElementById('fourierButton');
+        var computeInverseFourierButton = document.getElementById('inverseButton');
+        var computeFTButton = document.getElementById('computeFTButton');
+        var computeInvFTButton = document.getElementById('computeInvFTButton');
+
         var drawing = false;
         var pathArray = [];
+        var oldPathArray = [];
+        var fourierArray = [];
+        var polarPathArray = [];
         var lastEventTime;
 
         function startDrawing(e) {
@@ -74,11 +100,12 @@
             var centerY = rect.height / 2;
             var x = e.clientX - rect.left;
             var y = e.clientY - rect.top;
-            var r = Math.hypot(x - centerX, y - centerY);
-            var theta = Math.atan2(y - centerY, x - centerX);
+            var r = Math.hypot(x, y);
+            var theta = Math.atan2(y, x);
             var currentTime = Date.now();
             var timeElapsed = currentTime - lastEventTime;
-            pathArray.push({r: r, theta: theta, time: timeElapsed});
+            polarPathArray.push({r: r, theta: theta, time: timeElapsed});
+            pathArray.push({x: x - centerX, y: y - centerY, time: timeElapsed});
             ctx.lineTo(x, y);
             ctx.stroke();
             ctx.beginPath();
@@ -92,13 +119,13 @@
             var centerX = canvas.width / 2;
             var centerY = canvas.height / 2;
             for(let i = 0; i < pathArray.length; i++) {
-                var x = centerX + pathArray[i].r * Math.cos(pathArray[i].theta);
-                var y = centerY + pathArray[i].r * Math.sin(pathArray[i].theta);
+                var x = centerX + pathArray[i].x;
+                var y = centerY + pathArray[i].y;
                 ctx.beginPath();
                 ctx.moveTo(x, y);
                 if (i < pathArray.length - 1) {
-                    var nextX = centerX + pathArray[i+1].r * Math.cos(pathArray[i+1].theta);
-                    var nextY = centerY + pathArray[i+1].r * Math.sin(pathArray[i+1].theta);
+                    var nextX = centerX + pathArray[i+1].x;
+                    var nextY = centerY + pathArray[i+1].y;
                     ctx.lineTo(nextX, nextY);
                     ctx.stroke();
                 }
@@ -107,179 +134,84 @@
             }
         }
 
-        function populateCircle() {
-            var centerX = canvas.width / 2;
-            var centerY = canvas.height / 2;
-            var radius = Math.min(centerX, centerY) - 50;
-            var steps = 250; // steps taken to form the circle over 5 seconds
-            console.log("Pre drawing circle:", centerX, radius, steps);
-            for(var i = 0; i < steps; i++) {
-                var theta = (i / (steps - 1)) * (2 * Math.PI); // calculate the angle for this step
-                var r = radius;
-                var step_array = {r: r, theta: theta, time: 5.0/steps};
-                console.log("Adding point to path:", step_array)
-                pathArray.push(step_array);
-            }
-        }
 
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             //pathArray = [];
         }
 
-
-/*        function draw(e) {
-            if(!drawing) return;
-            var rect = canvas.getBoundingClientRect();
-            var mouseX = e.clientX - rect.left;
-            var mouseY = e.clientY - rect.top;
-            var currentTime = Date.now();
-            var timeElapsed = currentTime - lastEventTime;
-            pathArray.push({x: mouseX, y: mouseY, time: timeElapsed});
-            ctx.lineTo(mouseX, mouseY);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(mouseX, mouseY);
-            lastEventTime = currentTime;
-        }
-
-
-        async function replayDrawing() {
-            console.log("Replay Drawing:", pathArray.length, " at ", lastEventTime);
-            clearCanvas();
-            for(let i = 0; i < pathArray.length; i++) {
-                ctx.beginPath();
-                ctx.moveTo(pathArray[i].x, pathArray[i].y);
-                if (i < pathArray.length - 1) {
-                    ctx.lineTo(pathArray[i + 1].x, pathArray[i + 1].y);
-                    ctx.stroke();
-                }
-                console.log("Drawing from ", pathArray[i], " to ", pathArray[i + 1]);
-                await new Promise(resolve => setTimeout(resolve, pathArray[i].time));
-            }
-        }*/
-
-        /*function populateCircle() {
+        function populateCircle() {
             //clearCanvas();
             var centerX = canvas.width / 2;
             var centerY = canvas.height / 2;
             var radius = Math.min(centerX, centerY) - 50;
-            var steps = 250; // steps taken to form the circle over 5 seconds
+            var steps = 25; // steps taken to form the circle over 5 seconds
             console.log("Pre drawing circle:", centerX, radius, steps);
             for(var i = 0; i < steps; i++) {
                 var angle = (i / (steps - 1)) * (2 * Math.PI); // calculate the angle for this step
-                var x = centerX + radius * Math.cos(angle);
-                var y = centerY + radius * Math.sin(angle);
+                //var x = centerX + radius * Math.cos(angle);
+                //var y = centerY + radius * Math.sin(angle);
+                var x = radius * Math.cos(angle);
+                var y = radius * Math.sin(angle);
                 var step_array = {x: x, y: y, time: 5.0/steps};
                 console.log("Adding point to path:", step_array)
                 pathArray.push(step_array);
             }
-        }*/
+        }
 
         function resetPath() {
             pathArray = [];
         }
 
+        function showFourierData(minAmplitude) {
+            ///fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
+            //fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
+        }
 
+        function computeComplexFourierTransform(pathData) {
+            let N = pathData.length;
+            let fourierTransform = [];
 
+            for(let k = 0; k < N; k++) {
+                let real = 0;
+                let imag = 0;
+                for(let n = 0; n < N; n++) {
+                    let phi = (Math.PI * 2 * k * n) / N;
+                    real += pathData[n].x * Math.cos(phi) + pathData[n].y * Math.sin(phi);
+                    imag += pathData[n].y * Math.cos(phi) - pathData[n].x * Math.sin(phi);
+                }
+                real = real / N;
+                imag = imag / N;
+                let frequency = k;
+                let amplitude = Math.sqrt(real*real + imag*imag);
+                let phase = Math.atan2(imag, real);
+                fourierTransform.push({real, imag, frequency, amplitude, phase});
+            }
 
+            return fourierTransform.sort((a, b) => b.amplitude - a.amplitude);
+        }
 
+        function computeInverseComplexFourierTransform(fourierData, minAmplitude, maxFrequency) {
+            let N = fourierData.length;
+            let inverseFourierTransform = [];
 
+            for(let n = 0; n < N; n++) {
+                let x = 0;
+                let y = 0;
+                for(let k = 0; k < N; k++) {
+                    let {real, imag, frequency, amplitude, phase} = fourierData[k];
+                    if (amplitude < minAmplitude || frequency > maxFrequency) continue;
+                    x += real * Math.cos(2*Math.PI*frequency*n/N) - imag * Math.sin(2*Math.PI*frequency*n/N);
+                    y += real * Math.sin(2*Math.PI*frequency*n/N) + imag * Math.cos(2*Math.PI*frequency*n/N);
+                }
+                inverseFourierTransform.push({x, y});
+            }
 
+            return inverseFourierTransform;
+        }
 
-
-
-
-
-        // Fourier library setup
-const stdlib = {
-    Math: Math,
-    Float32Array: Float32Array,
-    Float64Array: Float64Array
-};
-const heap = fourier.custom.alloc(65536, 3);
-const fft_f64_65536_asm_runner = fourier.custom.fft_f64_65536_asm(stdlib, null, heap);
-fft_f64_65536_asm_runner.init();
-
-let fourierData = [];
-
-/*function takeFourierTransform() {
-    let complexData = pathArray.map(item => ({
-        real: item.r * Math.cos(item.theta),
-        imag: item.r * Math.sin(item.theta)
-    }));
-
-    const floatData = new Float64Array(complexData.flatMap(point => [point.real, point.imag]));
-    heap.set(floatData);
-    fft_f64_65536_asm_runner.transform();
-
-    const heapOut = new Float64Array(heap);
-    for (let i = 0; i < pathArray.length; i++) {
-        fourierData[i] = { real: heapOut[2*i], imag: heapOut[2*i + 1] };
-    }
-}*/
-
-function showFourierData(minAmplitude) {
-    ///fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
-    //fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
-}
-
-function filterFourierData(minAmplitude) {
-    fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
-    fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
-}
-
-/*function repopulatePathArray() {
-    const floatData = new Float64Array(fourierData.flatMap(point => [point.real, point.imag]));
-    heap.set(floatData);
-    fft_f64_65536_asm_runner.transform();
-
-    const heapOut = new Float64Array(heap);
-    for (let i = 0; i < pathArray.length; i++) {
-        const real = heapOut[2*i], imag = heapOut[2*i + 1];
-        const r = Math.hypot(real, imag);
-        const theta = Math.atan2(imag, real);
-        pathArray[i] = { r: r, theta: theta, time: 0 };
-    }
-}
-*/
-
-        function takeFourierTransform() {
-    let complexData = pathArray.map(item => ({
-        real: item.r * Math.cos(item.theta),
-        imag: item.r * Math.sin(item.theta)
-    }));
-
-    const floatData = new Float64Array(complexData.flatMap(point => [point.real, point.imag]));
-    new Float64Array(heap).set(floatData);
-    fft_f64_65536_asm_runner.transform();
-
-    const heapOut = new Float64Array(heap);
-    for (let i = 0; i < pathArray.length; i++) {
-        fourierData[i] = { real: heapOut[2*i], imag: heapOut[2*i + 1] };
-    }
-}
-
-function repopulatePathArray() {
-    const floatData = new Float64Array(fourierData.flatMap(point => [point.real, point.imag]));
-    new Float64Array(heap).set(floatData);
-    fft_f64_65536_asm_runner.transform();
-
-    const heapOut = new Float64Array(heap);
-    for (let i = 0; i < pathArray.length; i++) {
-        const real = heapOut[2*i], imag = heapOut[2*i + 1];
-        const r = Math.hypot(real, imag);
-        const theta = Math.atan2(imag, real);
-        pathArray[i] = { r: r, theta: theta, time: 0 };
-    }
-}
-
-
-
-
-
-
-
+        let minAmplitude = parseFloat(minAmplitudeInput.value);
+        let maxFrequency = parseFloat(maxFrequencyInput.value);
 
 
         resetButton.addEventListener('click', resetPath);
@@ -290,6 +222,26 @@ function repopulatePathArray() {
         clearButton.addEventListener('click', clearCanvas);
         replayButton.addEventListener('click', replayDrawing);
         circleButton.addEventListener('click', populateCircle);
+
+        computeFTButton.addEventListener('click', function() {
+            // Your Fourier Transform data
+            fourierArray = computeComplexFourierTransform(pathArray);
+            // Add your code here to handle/display the computed Fourier Transform
+            console.log(fourierArray);
+
+
+        });
+
+        computeInvFTButton.addEventListener('click', function() {
+            oldPathArray = pathArray;
+            let minAmplitude = parseFloat(minAmplitudeInput.value);
+            let maxFrequency = parseInt(maxFrequencyInput.value);
+            let inverseFourierData = computeInverseComplexFourierTransform(fourierArray, minAmplitude, maxFrequency);
+            // Add your code here to handle/display the computed inverse Fourier Transform
+            console.log(inverseFourierData);
+            pathArray = inverseFourierData;
+        });
+
     </script>
 </body>
 </html>
