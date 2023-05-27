@@ -43,19 +43,15 @@
             <button id="resetButton">Reset Path</button>
             <button id="replayButton">Replay Drawing</button>
             <button id="circleButton">Prepopulate Circle</button>
-            <button id="fourierButton">Compute Fourier</button>
-            <button id="inverseButton">Compute Inverse</button>
-        <div id="buttonContainer2">
-           <button id="computeFTButton">Compute Fourier Transform</button>
-           <button id="computeInvFTButton">Compute Inverse Fourier Transform</button>
-       </div>
-         <div id="filterContainer">
-            Min amplitude: <input type="number" id="minAmplitude" value="0">
-            Max frequency: <input type="number" id="maxFrequency" value="99999999">
-        </div>
+            <button id="computeFTButton">Compute Fourier</button>
+            <button id="computeInvFTButton">Compute Inverse Fourier</button>
+            <div id="filterContainer">
+                Min amplitude: <input type="number" id="minAmplitude" value="0">
+                Max frequency: <input type="number" id="maxFrequency" value="99999999">
+            </div>
         </div>
         <canvas id="myCanvas"></canvas>
-        <textarea id="fourierData" rows="4" cols="50"></textarea>
+        <!---<textarea id="fourierData" rows="4" cols="50"></textarea>/--->
     </div>
     <script>
         var canvas = document.getElementById('myCanvas');
@@ -70,8 +66,6 @@
         var inverseButton = document.getElementById('inverseButton');
         var minAmplitudeInput = document.getElementById('minAmplitude');
         var maxFrequencyInput = document.getElementById('maxFrequency');
-        var computeFourierButton = document.getElementById('fourierButton');
-        var computeInverseFourierButton = document.getElementById('inverseButton');
         var computeFTButton = document.getElementById('computeFTButton');
         var computeInvFTButton = document.getElementById('computeInvFTButton');
 
