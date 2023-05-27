@@ -31,6 +31,7 @@
             justify-content: center;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/fourier/fourier.min.js"></script>
 </head>
 <body>
     <div id="container">
@@ -69,6 +70,67 @@
         function draw(e) {
             if(!drawing) return;
             var rect = canvas.getBoundingClientRect();
+            var centerX = rect.width / 2;
+            var centerY = rect.height / 2;
+            var x = e.clientX - rect.left;
+            var y = e.clientY - rect.top;
+            var r = Math.hypot(x - centerX, y - centerY);
+            var theta = Math.atan2(y - centerY, x - centerX);
+            var currentTime = Date.now();
+            var timeElapsed = currentTime - lastEventTime;
+            pathArray.push({r: r, theta: theta, time: timeElapsed});
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            lastEventTime = currentTime;
+        }
+
+        async function replayDrawing() {
+            console.log("Replay Drawing:", pathArray.length, " at ", lastEventTime);
+            clearCanvas();
+            var centerX = canvas.width / 2;
+            var centerY = canvas.height / 2;
+            for(let i = 0; i < pathArray.length; i++) {
+                var x = centerX + pathArray[i].r * Math.cos(pathArray[i].theta);
+                var y = centerY + pathArray[i].r * Math.sin(pathArray[i].theta);
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                if (i < pathArray.length - 1) {
+                    var nextX = centerX + pathArray[i+1].r * Math.cos(pathArray[i+1].theta);
+                    var nextY = centerY + pathArray[i+1].r * Math.sin(pathArray[i+1].theta);
+                    ctx.lineTo(nextX, nextY);
+                    ctx.stroke();
+                }
+                console.log("Drawing from ", pathArray[i], " to ", pathArray[i + 1]);
+                await new Promise(resolve => setTimeout(resolve, pathArray[i].time));
+            }
+        }
+
+        function populateCircle() {
+            var centerX = canvas.width / 2;
+            var centerY = canvas.height / 2;
+            var radius = Math.min(centerX, centerY) - 50;
+            var steps = 250; // steps taken to form the circle over 5 seconds
+            console.log("Pre drawing circle:", centerX, radius, steps);
+            for(var i = 0; i < steps; i++) {
+                var theta = (i / (steps - 1)) * (2 * Math.PI); // calculate the angle for this step
+                var r = radius;
+                var step_array = {r: r, theta: theta, time: 5.0/steps};
+                console.log("Adding point to path:", step_array)
+                pathArray.push(step_array);
+            }
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            //pathArray = [];
+        }
+
+
+/*        function draw(e) {
+            if(!drawing) return;
+            var rect = canvas.getBoundingClientRect();
             var mouseX = e.clientX - rect.left;
             var mouseY = e.clientY - rect.top;
             var currentTime = Date.now();
@@ -81,11 +143,6 @@
             lastEventTime = currentTime;
         }
 
-
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            //pathArray = [];
-        }
 
         async function replayDrawing() {
             console.log("Replay Drawing:", pathArray.length, " at ", lastEventTime);
@@ -100,9 +157,9 @@
                 console.log("Drawing from ", pathArray[i], " to ", pathArray[i + 1]);
                 await new Promise(resolve => setTimeout(resolve, pathArray[i].time));
             }
-        }
+        }*/
 
-        function populateCircle() {
+        /*function populateCircle() {
             //clearCanvas();
             var centerX = canvas.width / 2;
             var centerY = canvas.height / 2;
@@ -117,11 +174,113 @@
                 console.log("Adding point to path:", step_array)
                 pathArray.push(step_array);
             }
-        }
+        }*/
 
         function resetPath() {
             pathArray = [];
         }
+
+
+
+
+
+
+
+
+
+
+
+
+        // Fourier library setup
+const stdlib = {
+    Math: Math,
+    Float32Array: Float32Array,
+    Float64Array: Float64Array
+};
+const heap = fourier.custom.alloc(65536, 3);
+const fft_f64_65536_asm_runner = fourier.custom.fft_f64_65536_asm(stdlib, null, heap);
+fft_f64_65536_asm_runner.init();
+
+let fourierData = [];
+
+/*function takeFourierTransform() {
+    let complexData = pathArray.map(item => ({
+        real: item.r * Math.cos(item.theta),
+        imag: item.r * Math.sin(item.theta)
+    }));
+
+    const floatData = new Float64Array(complexData.flatMap(point => [point.real, point.imag]));
+    heap.set(floatData);
+    fft_f64_65536_asm_runner.transform();
+
+    const heapOut = new Float64Array(heap);
+    for (let i = 0; i < pathArray.length; i++) {
+        fourierData[i] = { real: heapOut[2*i], imag: heapOut[2*i + 1] };
+    }
+}*/
+
+function showFourierData(minAmplitude) {
+    ///fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
+    //fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
+}
+
+function filterFourierData(minAmplitude) {
+    fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
+    fourierData = fourierData.filter(frequency => Math.sqrt(frequency.real**2 + frequency.imag**2) >= minAmplitude);
+}
+
+/*function repopulatePathArray() {
+    const floatData = new Float64Array(fourierData.flatMap(point => [point.real, point.imag]));
+    heap.set(floatData);
+    fft_f64_65536_asm_runner.transform();
+
+    const heapOut = new Float64Array(heap);
+    for (let i = 0; i < pathArray.length; i++) {
+        const real = heapOut[2*i], imag = heapOut[2*i + 1];
+        const r = Math.hypot(real, imag);
+        const theta = Math.atan2(imag, real);
+        pathArray[i] = { r: r, theta: theta, time: 0 };
+    }
+}
+*/
+
+        function takeFourierTransform() {
+    let complexData = pathArray.map(item => ({
+        real: item.r * Math.cos(item.theta),
+        imag: item.r * Math.sin(item.theta)
+    }));
+
+    const floatData = new Float64Array(complexData.flatMap(point => [point.real, point.imag]));
+    new Float64Array(heap).set(floatData);
+    fft_f64_65536_asm_runner.transform();
+
+    const heapOut = new Float64Array(heap);
+    for (let i = 0; i < pathArray.length; i++) {
+        fourierData[i] = { real: heapOut[2*i], imag: heapOut[2*i + 1] };
+    }
+}
+
+function repopulatePathArray() {
+    const floatData = new Float64Array(fourierData.flatMap(point => [point.real, point.imag]));
+    new Float64Array(heap).set(floatData);
+    fft_f64_65536_asm_runner.transform();
+
+    const heapOut = new Float64Array(heap);
+    for (let i = 0; i < pathArray.length; i++) {
+        const real = heapOut[2*i], imag = heapOut[2*i + 1];
+        const r = Math.hypot(real, imag);
+        const theta = Math.atan2(imag, real);
+        pathArray[i] = { r: r, theta: theta, time: 0 };
+    }
+}
+
+
+
+
+
+
+
+
 
         resetButton.addEventListener('click', resetPath);
 
