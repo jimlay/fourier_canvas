@@ -2,6 +2,12 @@
 <html>
 <head>
     <title>Fourier Canvas</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fourier/fourier.min.js"></script>
+    </script>
+
     <style>
         body, html {
             margin: 0;
@@ -10,50 +16,53 @@
             overflow: hidden;
         }
         #container {
-            position: relative;
+            display: flex;
             height: 100%;
         }
         #myCanvas {
-            position: absolute;
-            top: 50px; /* adjust as needed */
-            left: 0;
+            flex-grow: 1;
             border: 1px solid black;
         }
         #buttonContainer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 50px; /* adjust as needed */
-            background-color: #f8f9fa; /* adjust as needed */
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 200px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #buttonContainer button {
+            margin-bottom: 10px;
         }
         #filterContainer {
-            top: 50px;
+            margin-top: 20px;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/fourier/fourier.min.js"></script>
 </head>
 <body>
     <div id="container">
         <div id="buttonContainer">
-            <button id="clearButton">Clear Canvas</button>
-            <button id="resetButton">Reset Path</button>
-            <button id="replayButton">Replay Drawing</button>
-            <button id="circleButton">Prepopulate Circle</button>
-            <button id="computeFTButton">Compute Fourier</button>
-            <button id="computeInvFTButton">Compute Inverse Fourier</button>
+            <button class="btn btn-primary" id="replayButton">Play Drawing</button>
+            <button class="btn btn-primary" id="playFourier">Play Fourier</button>
             <div id="filterContainer">
-                Min amplitude: <input type="number" id="minAmplitude" value="0">
-                Max frequency: <input type="number" id="maxFrequency" value="99999999">
+                Min amplitude: <input type="number" id="minAmplitude" value="0" class="form-control">
+                Max frequency: <input type="number" id="maxFrequency" value="99999999" class="form-control">
             </div>
+            <div id="pathContainer">
+                Current Path: <input type="text" id="pathName" class="form-control" value='New Path' placeholder="Path Name">
+                Paths: <select id="pathSelect"></select>
+            </div>
+            <hr>
+            <button class="btn btn-primary" id="shareButton">Share</button>
+            <hr>
+            <hr>
+            <button class="btn btn-primary" id="circleButton">Prepopulate Circle</button>
+            <button class="btn btn-primary" id="clearButton">Clear Canvas</button>
+            <button class="btn btn-primary" id="resetButton">Reset Path</button>
+            <button class="btn btn-primary" id="computeFTButton">Compute Fourier</button>
+            <button class="btn btn-primary" id="computeInvFTButton">Compute Inverse Fourier</button>
         </div>
         <canvas id="myCanvas"></canvas>
-        <!---<textarea id="fourierData" rows="4" cols="50"></textarea>/--->
     </div>
-    <script>
+    <script type="module">
         var canvas = document.getElementById('myCanvas');
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight - 50; // adjust as needed
@@ -62,15 +71,57 @@
         var resetButton = document.getElementById('resetButton');
         var replayButton = document.getElementById('replayButton');
         var circleButton = document.getElementById('circleButton');
-        var fourierButton = document.getElementById('fourierButton');
-        var inverseButton = document.getElementById('inverseButton');
         var minAmplitudeInput = document.getElementById('minAmplitude');
         var maxFrequencyInput = document.getElementById('maxFrequency');
+        var playFourierButton = document.getElementById('playFourier');
         var computeFTButton = document.getElementById('computeFTButton');
         var computeInvFTButton = document.getElementById('computeInvFTButton');
 
+        var pathArrays = {};
+        var currentPathName = '';
+
+        // when you want to create a new path, get the name from the input
+        var pathNameInput = document.getElementById('pathName');
+        currentPathName = pathNameInput.value
+
+        function getCurrentPathName() {
+            return pathNameInput.value;
+        }
+
+        function currentPath() {
+            var currentPathName = getCurrentPathName();
+
+            // If the current path name does not exist in pathArrays, create an empty array for it
+            if (!pathArrays[currentPathName]) {
+                pathArrays[currentPathName] = [];
+            }
+            // Return a reference to the path array
+            return pathArrays[currentPathName];
+        }
+
+        function setCurrentPath(pathName) {
+            pathNameInput.value = pathName;
+        }
+
+        function updatePathSelect() {
+            var pathSelect = document.getElementById('pathSelect');
+            pathSelect.innerHTML = '';
+
+            for (var pathName in pathArrays) {
+                var option = document.createElement('option');
+                option.text = pathName;
+                pathSelect.add(option);
+            }
+        }
+
+
+        // Call this function whenever the selected option in pathSelect changes
+        pathSelect.addEventListener('change', function() {
+            setCurrentPath(this.value);
+        });
+
         var drawing = false;
-        var pathArray = [];
+        //var pathArray = [];
         var oldPathArray = [];
         var fourierArray = [];
         var polarPathArray = [];
@@ -99,7 +150,8 @@
             var currentTime = Date.now();
             var timeElapsed = currentTime - lastEventTime;
             polarPathArray.push({r: r, theta: theta, time: timeElapsed});
-            pathArray.push({x: x - centerX, y: y - centerY, time: timeElapsed});
+            //pathArray.push({x: x - centerX, y: y - centerY, time: timeElapsed});
+            currentPath().push({x: x - centerX, y: y - centerY, time: timeElapsed});
             ctx.lineTo(x, y);
             ctx.stroke();
             ctx.beginPath();
@@ -108,23 +160,23 @@
         }
 
         async function replayDrawing() {
-            console.log("Replay Drawing:", pathArray.length, " at ", lastEventTime);
+            console.log("Replay Drawing:", currentPath().length, " at ", lastEventTime);
             clearCanvas();
             var centerX = canvas.width / 2;
             var centerY = canvas.height / 2;
-            for(let i = 0; i < pathArray.length; i++) {
-                var x = centerX + pathArray[i].x;
-                var y = centerY + pathArray[i].y;
+            for(let i = 0; i < currentPath().length; i++) {
+                var x = centerX + currentPath()[i].x;
+                var y = centerY + currentPath()[i].y;
                 ctx.beginPath();
                 ctx.moveTo(x, y);
-                if (i < pathArray.length - 1) {
-                    var nextX = centerX + pathArray[i+1].x;
-                    var nextY = centerY + pathArray[i+1].y;
+                if (i < currentPath().length - 1) {
+                    var nextX = centerX + currentPath()[i+1].x;
+                    var nextY = centerY + currentPath()[i+1].y;
                     ctx.lineTo(nextX, nextY);
                     ctx.stroke();
                 }
-                console.log("Drawing from ", pathArray[i], " to ", pathArray[i + 1]);
-                await new Promise(resolve => setTimeout(resolve, pathArray[i].time));
+                console.log("Drawing from ", currentPath()[i], " to ", currentPath()[i + 1]);
+                await new Promise(resolve => setTimeout(resolve, currentPath()[i].time));
             }
         }
 
@@ -149,12 +201,25 @@
                 var y = radius * Math.sin(angle);
                 var step_array = {x: x, y: y, time: 5.0/steps};
                 console.log("Adding point to path:", step_array)
-                pathArray.push(step_array);
+                currentPath().push(step_array);
             }
         }
 
         function resetPath() {
-            pathArray = [];
+            //function clearPath() {
+            // Create a new path name (here I'm just using a timestamp for simplicity)
+            var newPathName = 'path' + Date.now();
+
+            // Assign the new path name to currentPathName
+            currentPathName = newPathName;
+
+            // Create a new path array in pathArrays
+            var currentPathName = getCurrentPathName();
+            pathArrays[currentPathName] = [];
+
+            // Also update the path name input field with the new name
+            pathNameInput.value = currentPathName;
+            updatePathSelect();
         }
 
         function showFourierData(minAmplitude) {
@@ -217,9 +282,29 @@
         replayButton.addEventListener('click', replayDrawing);
         circleButton.addEventListener('click', populateCircle);
 
+        playFourierButton.addEventListener('click', function() {
+            // Your Fourier Transform data
+            fourierArray = computeComplexFourierTransform(currentPath());
+            // Add your code here to handle/display the computed Fourier Transform
+            console.log(fourierArray);
+
+            let minAmplitude = parseFloat(minAmplitudeInput.value);
+            let maxFrequency = parseInt(maxFrequencyInput.value);
+            let inverseFourierData = computeInverseComplexFourierTransform(fourierArray, minAmplitude, maxFrequency);
+            // Add your code here to handle/display the computed inverse Fourier Transform
+            console.log(inverseFourierData);
+            var new_path = getCurrentPathName()+"_fourier";
+            setCurrentPath( new_path );
+            pathArrays[new_path] = inverseFourierData;
+            console.log("Set new_path:", new_path, " inverseFourierData:",inverseFourierData);
+            updatePathSelect();
+            clearCanvas();
+            replayDrawing();
+        });
+
         computeFTButton.addEventListener('click', function() {
             // Your Fourier Transform data
-            fourierArray = computeComplexFourierTransform(pathArray);
+            fourierArray = computeComplexFourierTransform(currentPath());
             // Add your code here to handle/display the computed Fourier Transform
             console.log(fourierArray);
 
@@ -227,14 +312,118 @@
         });
 
         computeInvFTButton.addEventListener('click', function() {
-            oldPathArray = pathArray;
+            oldPathArray = currentPath();
             let minAmplitude = parseFloat(minAmplitudeInput.value);
             let maxFrequency = parseInt(maxFrequencyInput.value);
             let inverseFourierData = computeInverseComplexFourierTransform(fourierArray, minAmplitude, maxFrequency);
             // Add your code here to handle/display the computed inverse Fourier Transform
             console.log(inverseFourierData);
-            pathArray = inverseFourierData;
+            var new_path = getCurrentPathName()+"_fourier";
+            setCurrentPath( new_path );
+            pathArrays[new_path] = inverseFourierData;
+            console.log("Set new_path:", new_path, " inverseFourierData:",inverseFourierData);
+            updatePathSelect()
         });
+
+
+// Import the functions you need from the SDKs you need
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { doc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics.js";
+
+  // TODO: Add SDKs for Firebase products that you want to use
+
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+
+  // Your web app's Firebase configuration
+
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
+  const firebaseConfig = {
+
+    apiKey: "AIzaSyB1WESLtXGjCGpGGJqp73pCBuIVwEEieYE",
+
+    authDomain: "fourier-canvas.firebaseapp.com",
+
+    projectId: "fourier-canvas",
+
+    storageBucket: "fourier-canvas.appspot.com",
+
+    messagingSenderId: "252985912451",
+
+    appId: "1:252985912451:web:e7bfe923f6c54365e8ffb6",
+
+    measurementId: "G-GED2M8TWVT"
+
+  };
+
+
+  // Initialize Firebase
+
+  const app = initializeApp(firebaseConfig);
+
+  const analytics = getAnalytics(app);
+
+  var db = getFirestore(app);
+
+  window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pathCollectionID = urlParams.get('pathCollectionID');
+      const selectedPathName = urlParams.get('pathName');
+
+      if (pathCollectionID) {
+          getDoc(doc(db, "pathCollections", pathCollectionID)).then((doc) => {
+              if (doc.exists()) {
+                  pathArrays = JSON.parse(doc.data().pathArrays);
+                  console.log("Loaded pathCollectionID:", pathCollectionID, " found pathArrays:", pathArrays);
+                  updatePathSelect();
+              setCurrentPath(selectedPathName)
+
+              } else {
+                  console.log("No such document!");
+              }
+          }).catch((error) => {
+              console.log("Error getting document:", error);
+          });
+
+            //var docRef = db.collection("pathCollections").doc(pathCollectionID);
+
+            //docRef.get().then(function(doc) {
+            //    if (doc.exists) {
+            //        pathArrays = JSON.parse(doc.data().pathArrays);
+            //    } else {
+            //        // doc.data() will be undefined in this case
+            //        console.log("No such document!");
+            //    }
+            //}).catch(function(error) {
+            //    console.log("Error getting document:", error);
+            //});
+        }
+    };
+
+        async function share() {
+            var pathCollectionID = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            var pathArraysString = JSON.stringify(pathArrays);
+            await setDoc(doc(db, "pathCollections", pathCollectionID), {
+                pathArrays: pathArraysString
+            });
+            var newURL = window.location.protocol + "//" + window.location.host + window.location.pathname + '?pathCollectionID=' + pathCollectionID + '&pathName=' + getCurrentPathName();
+
+            window.prompt("Copy to clipboard: Ctrl+C, Enter", newURL);
+
+        }
+
+
+    // Call this function whenever you add or remove a path
+    updatePathSelect();
+
+    var shareButton = document.getElementById('shareButton');
+    shareButton.addEventListener('click', share);
 
     </script>
 </body>
